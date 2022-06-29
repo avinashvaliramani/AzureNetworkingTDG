@@ -1,0 +1,64 @@
+#Define required variables
+$Azureregion1="EastUS2"
+$Azureregion2="EastUS"
+$RG="RG01"
+$AppServicePlan01="MBSP-ASP-01"
+$AppServicePlan02="MBSP-ASP-02"
+$frontend="MBSP-Frontend-01"
+$BackendPool="MBSP-Backendpool-01"
+$frontdoorname="MBSP-Frontdoor-01"
+
+# Create first web app in East US 2 region.
+$app01 = New-AzWebApp -Name "WebApp-MBSP-01" `
+-Location $azureregion1 `
+-ResourceGroupName $RG `
+-AppServicePlan $AppServicePlan01
+
+# Create second web app in East US region.
+$app02 = New-AzWebApp -Name "WebApp-MBSP-02" `
+-Location $azureregion2 `
+-ResourceGroupName $RG `
+-AppServicePlan $AppServicePlan02
+
+#Create the front-end object
+$FrontendObject01 = New-AzFrontDoorFrontendEndpointObject -Name $frontend -HostName $frontdoorname".azurefd.net"
+
+# Create back-end objects that points to the hostname of the web apps
+$backend01 = New-AzFrontDoorBackendObject -Address $app01.DefaultHostName
+$backend02 = New-AzFrontDoorBackendObject -Address $app02.DefaultHostName
+
+# Create a health probe 
+$HealthProbe = New-AzFrontDoorHealthProbeSettingObject -Name "HealthProbe"
+
+# Create load balancing settings
+$LoadBalancing = New-AzFrontDoorLoadBalancingSettingObject -Name "Loadbalancing" `
+-SampleSize "4" `
+-SuccessfulSamplesRequired "2" `
+-AdditionalLatencyInMilliseconds "0"
+
+# Create a back-end pool
+$BackendPool01 = New-AzFrontDoorBackendPoolObject -Name "$BackendPool" `
+-FrontDoorName $frontdoorname `
+-ResourceGroupName $RG `
+-Backend $backend01,$backend02 `
+-HealthProbeSettingsName "HealthProbe" `
+-LoadBalancingSettingsName "Loadbalancing"
+
+# Create Routing rule connecting the front end to the back-end pool
+$RoutingRule = New-AzFrontDoorRoutingRuleObject `
+-Name RoutingRule `
+-FrontDoorName $frontdoorname `
+-ResourceGroupName $RG `
+-FrontendEndpointName $frontend `
+-BackendPoolName $BackendPool `
+-PatternToMatch "/*"
+
+# Creates Azure Front Door
+New-AzFrontDoor `
+-Name $frontdoorname `
+-ResourceGroupName $RG `
+-RoutingRule $RoutingRule `
+-BackendPool $BackendPool01 `
+-FrontendEndpoint $FrontendObject01 `
+-LoadBalancingSetting $LoadBalancing `
+-HealthProbeSetting $HealthProbe

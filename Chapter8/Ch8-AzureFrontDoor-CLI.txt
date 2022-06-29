@@ -1,0 +1,75 @@
+#Define required variables
+azureregion1="EastUS2"
+azureregion2="EastUS"
+rg="RG01"
+appserviceplan01="MBSP-ASP-01"
+appserviceplan02="MBSP-ASP-02"
+frontend="MBSP-Frontend-01"
+backendpool="MBSP-Backendpool-01"
+frontdoorname="MBSP-Frontdoor-01"
+app01="WebApp-MBSP-01"
+app01="WebApp-MBSP-02"
+
+#Create test app service plans and webapps in different regions
+az appservice plan create \
+--name $appserviceplan01 \
+--resource-group $rg \
+--location $azureregion1
+
+az appservice plan create \
+--name $appserviceplan02 \
+--resource-group $rg \
+--location $azureregion2
+
+az webapp create \
+--name MBSP-WebApp-03 \
+--resource-group $rg \
+--plan $appserviceplan01
+
+az webapp create \
+--name MBSP-WebApp-04 \
+--resource-group $rg \
+--plan $appserviceplan02
+
+#Create Azure Front Door Service
+az network front-door create --backend-address $app01.azurewebsites.net\
+                                                     --name $frontdoorname \
+                                                     --resource-group $rg
+
+#Create Front Door Health Probe
+az network front-door probe create --front-door-name  $frontdoorname \
+                                                                --interval 30 \
+                                                                --name "Healthprobe" \
+                                                                --resource-group $rg \
+                                                                --path "/"
+
+#Create Load Balancing Rule
+az network front-door load-balancing create --resource-group $rg \
+                                                                        --front-door-name $frontdoorname \
+                                                                                        --name "LoadBalancingSetting" \
+                                                                                        --sample-size 4 \
+                                                                                           --successful-samples-required 2 \
+                                                                                           --additional-latency 0
+
+#Create Back-end Pool
+az network front-door backend-pool create --address $app01.azurewebsites.net \
+                                                                                  --front-door-name $frontdoorname \
+                                                                                  --load-balancing "LoadBalancingSetting" \
+                                                                                  --name $backendpool \
+                                                                                  --probe "HealthProbe" \
+                                                                                  --resource-group $rg
+
+az network front-door backend-pool backend add --resource-group $rg \
+                                                                                  --front-door-name $frontdoorname \
+                                                                                  --pool-name $backendpool \
+                                                                                  --address $app02.azurewebsites.net \
+                                                                                  --disabled false
+#Create Routing Rule
+az network front-door routing-rule create --front-door-name  $frontdoorname \
+                                                                                  --frontend-endpoints  $frontend \
+                                                                                  --name RoutingRule \
+                                                                                  --resource-group $rg \
+                                                                                  --route-type Forward \
+                                                                                  --backend-pool $backendpool \
+
+                      --accepted-protocols "HTTPSOnly"

@@ -1,0 +1,12 @@
+#Define required variables
+$subnetName = "AzureBastionSubnet"
+$rg = "RG01"
+$location = "eastus"
+
+#Create subnet and public IP for Azure Bastion
+$subnet = New-AzVirtualNetworkSubnetConfig -Name $subnetName -AddressPrefix 10.2.1.0/27
+$vnet = New-AzVirtualNetwork -Name "vNET-01" -ResourceGroupName "RG01" -Location $location -AddressPrefix 10.2.0.0/16 -Subnet $subnet
+$bastionpublicip = New-AzPublicIpAddress -ResourceGroupName $rg -name "Bastion-vNET01-PIP" -location $location -AllocationMethod Static -Sku Standard
+
+#Create Bastion service
+New-AzBastion -ResourceGroupName $rg -Name "Bastion" -PublicIpAddress $bastionpublicip -VirtualNetwork $vnet

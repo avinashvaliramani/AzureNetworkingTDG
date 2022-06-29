@@ -1,0 +1,80 @@
+#Define variables
+$Region = 'eastus'
+$RG = 'RG01'
+$LBName = 'PublicLoadBalancer01'
+$LBPIP = 'FrontendPIP01'
+$BEPool = 'BackendPool01'
+
+#Create zone redundant Public IP
+$LBpublicip = @{
+    Name = '$LBPIP'
+    ResourceGroupName = 'RG01'
+    Location = $location
+    Sku = 'Standard'
+    AllocationMethod = 'static'
+    Zone = 1,2,3
+}
+New-AzPublicIpAddress @LBpublicip
+
+#Create public load balancer
+# Place public IP into a variable
+$azlbpublicIp = Get-AzPublicIpAddress -Name $LBPIP -ResourceGroupName $RG
+
+# Create load balancer front-end configuration
+$azLBfrontend = New-AzLoadBalancerFrontendIpConfig -Name $LBPIP -PublicIpAddress $azlbpublicIp
+
+# Create back-end address pool configuration
+$azlbbepool = New-AzLoadBalancerBackendAddressPoolConfig -Name $BEPool
+
+# Create the health probe
+$healthprobe = @{
+    Name = 'HealthProbe-Port80'
+    Protocol = 'http'
+    Port = '80'
+    IntervalInSeconds = '360'
+    ProbeCount = '5'
+    RequestPath = '/'
+}
+$httphealthprobe = New-AzLoadBalancerProbeConfig @healthprobe
+
+# Create the load-balancer rule
+$azloadbalancingrule = @{
+    Name = 'LBRule-HTTP-01'
+    Protocol = 'tcp'
+    FrontendPort = '80'
+    BackendPort = '80'
+    IdleTimeoutInMinutes = '15'
+    FrontendIpConfiguration = $azlbfrontend
+    BackendAddressPool = $azlbbepool
+}
+$lbhttprule = New-AzLoadBalancerRuleConfig @azloadbalancingrule -EnableTcpReset -DisableOutboundSNAT
+
+## Create the load balancer
+$loadbalancer = @{
+    ResourceGroupName = $RG
+    Name = $LBName
+    Location = $Region
+    Sku = 'Standard'
+    FrontendIpConfiguration = $frontend
+    BackendAddressPool = $azlbbepool
+    LoadBalancingRule = $lbhttprule
+    Probe = $httphealthprobe
+}
+New-AzLoadBalancer @loadbalancer
+
+## Add VM01 to the back-end pool
+$lb = Get-AzLoadBalancer `
+    -ResourceGroupName $RG `
+    -Name $LBName 
+$nic1 = Get-AzNetworkInterface `
+    -ResourceGroupName $RG `
+    -Name "VM01*"
+$nic1.IpConfigurations[0].LoadBalancerBackendAddressPools=$lb.BackendAddressPools[0]
+Set-AzNetworkInterface -NetworkInterface $nic1
+
+## Add VM02 to the back-end pool
+$nic2 = Get-AzNetworkInterface `
+    -ResourceGroupName $RG `
+    -Name "VM02*"
+$nic2.IpConfigurations[0].LoadBalancerBackendAddressPools=$lb.BackendAddressPools[1]
+Set-AzNetworkInterface -NetworkInterface $nic2

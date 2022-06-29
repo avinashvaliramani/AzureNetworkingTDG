@@ -1,0 +1,13 @@
+#Define required variables
+$rg = "RG01"
+$vnet = "vNET-01"
+$subnet = "Subnet01"
+$loadbalancer = "LoadBalancer"
+$lb-ip = "lb-frontend-ip"
+$location = "East US"
+
+#Create Private Link private IP
+$IPConf = New-AzPrivateLinkServiceIpConfig -Name 'PrivLink-IPConfig' -Subnet $subnet -PrivateIpAddress '10.2.0.5'
+
+#Create Private Link service
+New-AzPrivateLinkService -Name ‘PrivateLinkService' -ResourceGroupName = $rg -Location = $location -LoadBalancerFrontendIpConfiguration $lb-ip -IpConfiguration $IPConf

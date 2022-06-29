@@ -1,0 +1,33 @@
+#Define required variables
+$rg = "RG01"
+$vnet = "vNET-01"
+$subnetName = "Subnet01"
+$webapp = "WebApp-MBSP-01"
+$endpointname = "PrivateEndpoint"
+$location = "East US"
+
+#Configure the private endpoint
+$PrivEndPointConn = New-AzPrivateLinkServiceConnection -Name "myPrivateEndpointconnection" -PrivateLinkServiceID $webApp.Id -GroupId sites
+$privateEndpoint = New-AzPrivateEndpoint -Name "myPrivateEndpoint" `
+-ResourceGroupName $resourcegroupname `
+-Location $location `
+-Subnet $subnet `
+-PrivateLinkServiceConnection $privEndPointConn
+
+#Create the private DNS zone
+$PrivdnsZone = New-AzPrivateDnsZone -Name "privatelink.azurewebsites.net" -ResourceGroupName $rg
+
+#Create the private DNS link
+$dnsLink = New-AzPrivateDnsVirtualNetworkLink -Name "privateendpointlink" `
+-ResourceGroupName $rg `
+-ZoneName "privatelink.azurewebsites.net" `
+-VirtualNetworkId $vnet.Id
+
+#Create the private DNS config
+$dnsConfig = New-AzPrivateDnsZoneConfig -Name "privatelink.azurewebsites.net" `
+-PrivateDnsZoneId $privdnsZone.ResourceId
+
+$dnsZoneGroup = New-AzPrivateDnsZoneGroup -Name "PrivDNSZoneGroup" `
+-ResourceGroupName $rg `
+-PrivateEndpointName $privateEndpoint.Name `
+-PrivateDnsZoneConfig $dnsConfig

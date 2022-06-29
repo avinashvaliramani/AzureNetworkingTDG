@@ -1,0 +1,41 @@
+#Query Resource ID for the endpoints. Record these for use later in the script.
+az resource list --name "VM01-PIP01"
+az resource list --name "VM02-PIP01"
+
+#Define required variables
+rg="RG01"
+azureregion="eastus2"
+trafficmgrprofile="TrafficManager-MSBP-02"
+endpoint01name="endpoint01"
+endpoint02name="endpoint02"
+
+#Create Traffic Manager Profile
+az network traffic-manager profile create \
+                      --name $trafficmgrprofile \
+                      --resource-group $rg \
+                      --routing-method Performance \
+                      --path "/" \
+                      --protocol HTTP \
+                      --unique-dns-name $trafficmgrprofile \
+                      --ttl 30 \
+                      --port 80
+
+#Create Traffic Manager Endpoint-01
+#Replace the value for TargetResourceID with the one you gathered earlier for “VM01-PIP01”
+az network traffic-manager endpoint create \
+    --name $endpoint01name \
+    --resource-group $rg \
+    --profile-name $trafficmgrprofile \
+    --type azureEndpoints \
+    --target-resource-id '/subscriptions/7719ec11-92dd-457c-b393-5adc483e4c79/resourceGroups/RG01/providers/Microsoft.Network/publicIPAddresses/PublicIP-01' \
+    --endpoint-status Enabled
+
+#Create Traffic Manager Endpoint-02
+#Replace the value for TargetResourceID with the one you gathered earlier for “VM02-PIP01”
+az network traffic-manager endpoint create \
+    --name $endpoint02name \
+    --resource-group $rg \
+    --profile-name $trafficmgrprofile \
+    --type azureEndpoints \
+    --target-resource-id '/subscriptions/7719ec11-92dd-457c-b393-5adc483e4c79/resourceGroups/RG01/providers/Microsoft.Network/publicIPAddresses/PublicIP-02' \
+    --endpoint-status Enabled

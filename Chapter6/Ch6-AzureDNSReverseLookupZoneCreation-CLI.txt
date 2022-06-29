@@ -1,0 +1,2 @@
+#Create reverse DNS zone
+az network dns zone create --resource-group RG01 --name 4.168.192.in-addr.arpa

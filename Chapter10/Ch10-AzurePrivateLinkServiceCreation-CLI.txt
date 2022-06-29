@@ -1,0 +1,17 @@
+#Define required variables
+rg="RG01"
+vnet="vNET-01"
+subnetName="Subnet01"
+loadbalancer="LoadBalancer"
+lb-ip="lb-frontend-ip"
+location="eastus"
+
+#Create Private Link service
+az network private-link-service create \
+    --resource-group $rg \
+    --name PrivateLinkService \
+    --vnet-name $vnet \
+    --subnet $subnetname \
+    --lb-name $loadbalancer \
+    --lb-frontend-ip-configs $lb-ip \
+    --location $location

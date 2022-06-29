@@ -1,0 +1,7 @@
+#Define variables
+$rg = "RG01"
+$name = "Link-To-vNET01"
+$vnet = "vNET-01"
+
+#Create the virtual network link
+New-AzPrivateDNSVirtualNetworkLink -ZoneName privatedomain.com -ResourceGroupName $rg -Name $name -VirtualNetworkId $vnet.id

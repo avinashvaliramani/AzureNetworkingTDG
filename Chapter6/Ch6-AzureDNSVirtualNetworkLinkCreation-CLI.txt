@@ -1,0 +1,7 @@
+#Define variables
+rg = "RG01"
+name = "Link-To-vNET01"
+vnet = "vNET-01"
+
+#Create the virtual network link
+az network private-dns link vnet create --resource-group $rg --name $rg --zone-name privatedomain.com --virtual-network $vnet

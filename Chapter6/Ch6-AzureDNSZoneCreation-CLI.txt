@@ -1,0 +1,5 @@
+#Create private DNS zone
+az network private-dns zone create --resource-group RG01 --name privatedomain.com
+
+#Create public DNS zone
+Az network dns zone create –-resource-group RG01 –-name publicdomain.com

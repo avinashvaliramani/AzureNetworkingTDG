@@ -1,0 +1,37 @@
+#Query Resource ID for the endpoints. Record these for use later in the script.
+Get-AzResource -Name "VM01-PIP01" | select ResourceID
+Get-AzResource -Name "VM02-PIP01" | select ResourceID
+
+#Define required variables
+$AzureRegion="EastUS2"
+$RG="RG01"
+$TrafficMgrprofile="TrafficManager-MSBP-01"
+#Create Traffic Manager Profile
+New-AzTrafficManagerProfile `
+-Name $TrafficMgrProfile `
+-ResourceGroupName $RG `
+-TrafficRoutingMethod Performance `
+-ProfileStatus Enabled `
+-MonitorPath '/' `
+-MonitorProtocol "HTTP" `
+-RelativeDnsName $TrafficMgrProfile `
+-Ttl 30 `
+-MonitorPort 80
+
+#Create Traffic Manager Endpoint-01
+#Replace the value for TargetResourceID with the one you gathered earlier for “VM01-PIP01”
+New-AzTrafficManagerEndpoint -Name "Endpoint01" `
+-ResourceGroupName $RG `
+-ProfileName "$TrafficMgrProfile" `
+-Type AzureEndpoints `
+-TargetResourceId /subscriptions/7719ec11-92dd-457c-b393-5adc483e4c79/resourceGroups/RG01/providers/Microsoft.Network/publicIPAddresses/PublicIP-01 `
+-EndpointStatus "Enabled"
+
+#Create Traffic Manager Endpoint-02
+#Replace the value for TargetResourceID with the one you gathered earlier for “VM02-PIP01”
+New-AzTrafficManagerEndpoint -Name "Endpoint02" `
+-ResourceGroupName $RG `
+-ProfileName "$TrafficMgrProfile" `
+-Type AzureEndpoints `
+-TargetResourceId "/subscriptions/7719ec11-92dd-457c-b393-5adc483e4c79/resourceGroups/RG01/providers/Microsoft.Network/publicIPAddresses/publicip-02" `
+-EndpointStatus "Enabled"

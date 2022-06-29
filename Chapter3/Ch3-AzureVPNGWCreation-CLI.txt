@@ -1,0 +1,20 @@
+#Define variables
+$rg = "RG01"
+$location = "East US"
+$vpngwname = "TTL_MA-GW"
+$vnet = "vNET01"
+
+#Create GatewaySubnet
+az network vnet subnet create --vnet-name $vnet  -n GatewaySubnet -g $rg --address-prefix 10.0.1.0/24
+
+#Create public IP for VPNGW
+az network public-ip create -n TTL-MA-GW-PIP -g $rg --allocation-method Dynamic
+
+#Create VPNGW gateway
+az network vnet-gateway create -n $vpngwname -l $location --public-ip-address TTL-MA-GW-PIP -g $rg --vnet $vnet --gateway-type Vpn --sku VpnGw1 --vpn-type RouteBased --no-wait
+
+#Create Local Network Gateway
+az network local-gateway create -g $rg -n DC1 --gateway-ip-address 104.42.18.130 --local-address-prefixes 10.104.0.0/24
+
+#Create site-to-site connection
+az network vpn-connection create --name MA-DC1 --resource-group $rg --vnet-gateway1 $vpngwname -l $location --shared-key abcde12345 --local-gateway2 DC1

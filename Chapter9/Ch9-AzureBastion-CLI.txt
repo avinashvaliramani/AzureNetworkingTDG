@@ -1,0 +1,8 @@
+#Define required variables
+vnet="vNET-01"
+resourcegroup="RG01"
+location="eastus"
+publicip="Bastion-vNET01-PIP"
+
+#Create Azure Bastion service
+az network bastion create --location $location --name Bastion --public-ip-address $publicip --resource-group $resourcegroup --vnet-name $vnet

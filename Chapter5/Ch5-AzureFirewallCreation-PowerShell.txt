@@ -1,0 +1,51 @@
+#Define variables
+$RG="RG01"
+$Region="EastUS2"
+
+#Create new Firewall Policy
+$AzFirewallpolicy = New-AzFirewallPolicy -Name FirewallPolicy -ResourceGroupName $RG -Location $Region
+
+#Create and Configure a firewall policy application rule
+$FWAppRuleGroup = New-AzFirewallPolicyRuleCollectionGroup -Name DefaultApplicationRuleCollectionGroup -Priority 100 -FirewallPolicyObject $AzFirewallPolicy
+$FWApprule01 = New-AzFirewallPolicyApplicationRule -Name AllowWebBrowsing -SourceAddress 10.0.1.0/24 -Protocol http, https -WebCategory "Business"
+$FWAppCollection01 = New-AzFirewallPolicyFilterRuleCollection -Name AppRuleCollection01 -Priority 100 -Rule $FWAppRule01 -ActionType "Allow"
+Set-AzFirewallPolicyRuleCollectionGroup -Name $FWAppRuleGroup.Name -Priority 100 -RuleCollection $FWAppcollection01 -FirewallPolicyObject $AzFirewallpolicy
+
+#Create and configure a firewall policy network rule
+$FWNWRuleGroup = New-AzFirewallPolicyRuleCollectionGroup -Name DefaultNetworkRuleCollectionGroup -Priority 200 -FirewallPolicyObject $AzFirewallPolicy
+$FWNetRule01 = New-AzFirewallPolicyNetworkRule -name CloudFlareDNS -protocol UDP -sourceaddress 10.0.1.0/24 -destinationaddress 1.1.1.1,1.0.0.1 -destinationport 53
+$FWNetCollection = New-AzFirewallPolicyFilterRuleCollection -Name AllowDomainNameResolution -Priority 100 -Rule $FWNetRule01 -ActionType "Allow"
+Set-AzFirewallPolicyRuleCollectionGroup -Name $FWNWRuleGroup.Name -Priority 200 -RuleCollection $FWNetCollection -FirewallPolicyObject $AzFirewallPolicy
+
+#Deploy the Azure Firewall
+# Create a Public IP for the firewall
+$AzFWPubIP = New-AzPublicIpAddress -Name "AzFWPIP01" -ResourceGroupName $RG -Location $Region -AllocationMethod Static -Sku Standard
+
+# Create the firewall
+$vnet = Get-AzVirtualNetwork -ResourceGroupName $RG -Name "vNET01"
+$Azfirewall = New-AzFirewall -Name Firewall -ResourceGroupName $RG -Location $Region -VirtualNetwork $vnet -PublicIpAddress $AzFWPubIP -FirewallPolicyId $AzFirewallpolicy.Id
+$AzFWPrivIP = $AzFirewall.IpConfigurations.privateipaddress
+
+#Create and configure DNAT policy
+$FWNATRuleGroup = New-AzFirewallPolicyRuleCollectionGroup -Name DefaultDNATRuleCollectionGroup -Priority 300 -FirewallPolicyObject $AzFirewallPolicy
+$FWNATRule01 = New-AzFirewallPolicyNatRule -Name DNAT-AllowRDP-VM -SourceAddress * -Protocol TCP -DestinationAddress $AzFWPubIP -DestinationPort 3389 -TranslatedAddress 10.0.0.4 -TranslatedPort 3389
+$FWDNATCollection = New-AzFirewallPolicyNatRuleCollection -Name DNAT-Rules -Priority 100 -Rule $FWNATRule01 -ActionType "Dnat"
+Set-AzFirewallPolicyRuleCollectionGroup -Name $FWNATRuleGroup.Name -Priority 300 -RuleCollection $FWDNATCollection -FirewallPolicyObject $AzFirewallPolicy
+
+#Create route table
+$RouteTbl = New-AzRouteTable -Name RouteTable -ResourceGroupName $RG -location $Region `
+#Create the default route
+ Add-AzRouteConfig -Name "DefaultRoute" `
+  -RouteTable $RouteTbl `
+  -AddressPrefix 0.0.0.0/0 `
+  -NextHopType "VirtualAppliance" `
+  -NextHopIpAddress $AzFWPrivIP
+
+#Set route table
+Set-AzRouteTable -routetable $RouteTbl
+
+#Associate the route table to the subnet
+Set-AzVirtualNetworkSubnetConfig -VirtualNetwork $vnet `
+  -Name 'Servers' `
+  -AddressPrefix 10.0.1.0/24 `
+  -RouteTable $RouteTbl

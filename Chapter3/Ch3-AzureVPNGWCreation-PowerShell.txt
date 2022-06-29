@@ -1,0 +1,24 @@
+#Define variables
+$rg = "RG01"
+$location = "East US"
+$vpngwname = "TTL_MA-GW"
+$vnet = "vNET01"
+
+#Create GatewaySubnet
+Add-AzVirtualNetworkSubnetConfig -Name ‘GatewaySubnet’ -AddressPrefix 10.0.1.0/24 -VirtualNetwork $vnet
+
+#Create public IP for VPNGW
+$gwpip= New-AzPublicIpAddress -Name TTL-MA-GW-PIP -ResourceGroupName $rg -Location $location -AllocationMethod Dynamic
+
+#Create VPNGW configuration
+$subnet = Get-AzVirtualNetworkSubnetConfig -Name ‘GatewaySubnet’ -VirtualNetwork $vnet
+$vpngwipconfig = New-AzVirtualNetworkGatewayIpConfig -Name vpngwipconfig1 -SubnetId $subnet.Id -PublicIpAddressId $gwpip.Id
+
+#Create the VPN GW
+New-AzVirtualNetworkGateway -Name $vpngwname -ResourceGroupName $rg -Location $location -IpConfigurations $gwipconfig -GatewayType Vpn -VpnType RouteBased -GatewaySku VpnGw1
+
+#Create Local Network Gateway
+$local = New-AzLocalNetworkGateway -Name DC1 -ResourceGroupName $rg -Location $location -GatewayIpAddress 104.42.18.130 -AddressPrefix "10.104.0.0/24"
+
+#Create site-to-site connection
+New-AzVirtualNetworkGatewayConnection -Name MA-DC1 -ResourceGroupName $rg -Location $location -VirtualNetworkGateway1 $vpngwname -LocalNetworkGateway2 $local -ConnectionType Ipsec -RoutingWeight 10 -SharedKey ‘abcde12345’

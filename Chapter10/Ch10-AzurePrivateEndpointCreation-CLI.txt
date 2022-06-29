@@ -1,0 +1,43 @@
+#Define required variables
+rg="RG01"
+vnet="vNET-01"
+subnetName="Subnet01"
+webapp="WebApp-MBSP-01"
+endpointname="PrivateEndpoint"
+location="East US"
+
+#Find the web app resource ID
+id=$(az webapp list \
+    --resource-group $rg \
+    --query '[].[id]' \
+    --output tsv)
+
+#Create and configure the private endpoint
+az network private-endpoint create \
+    --name PrivateEndpoint \
+    --resource-group $rg \
+    --vnet-name $vnet --subnet $subnet \
+    --private-connection-resource-id $id \
+    --group-id sites \
+    --connection-name PrivEndpointConnection
+
+#Create the private DNS zone
+az network private-dns zone create \
+    --resource-group $rg \
+    --name "privatelink.azurewebsites.net"
+
+#Create the private DNS link
+az network private-dns link vnet create \
+    --resource-group $rg \
+    --zone-name "privatelink.azurewebsites.net" \
+    --name privateendpointlink \
+    --virtual-network $vnet \
+    --registration-enabled false
+
+#Create the private DNS config
+az network private-endpoint dns-zone-group create \
+   --resource-group $rg \
+   --endpoint-name PrivateEndpoint \
+   --name PrivDNSZoneGroup \
+   --private-dns-zone "privatelink.azurewebsites.net" \
+   --zone-name webapp

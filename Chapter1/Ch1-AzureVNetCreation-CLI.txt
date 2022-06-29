@@ -1,0 +1,8 @@
+#Define variables
+vnetname = "vNET01"
+rg = "RG01"
+location = "East US"
+subnet = "default"
+
+#Create virtual network with the default subnet configuration
+az network vnet create -g $rg -n $vnetname –location $location --address-prefix 10.0.0.0/16 --subnet-name $subnet --subnet-prefix 10.0.0.0/24

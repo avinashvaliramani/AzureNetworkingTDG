@@ -1,0 +1,5 @@
+#Create private DNS zone
+New-AzPrivateDnsZone -Name privatedomain.com -ResourceGroupName RG01
+
+#Create public DNS zone
+New-AzDnsZone –Name publicdomain.com –ResourceGroupName RG01

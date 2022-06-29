@@ -1,0 +1,76 @@
+#Define variables
+$agSubnetConfig = New-AzVirtualNetworkSubnetConfig `
+  -Name myAGSubnet `
+  -AddressPrefix 10.21.0.0/24
+$backendSubnetConfig = New-AzVirtualNetworkSubnetConfig `
+  -Name myBackendSubnet `
+  -AddressPrefix 10.21.1.0/24
+
+New-AzVirtualNetwork `
+  -ResourceGroupName myResourceGroupAG `
+  -Location eastus `
+  -Name myVNet `
+  -AddressPrefix 10.21.0.0/16 `
+  -Subnet $agSubnetConfig, $backendSubnetConfig
+
+New-AzPublicIpAddress `
+  -ResourceGroupName myResourceGroupAG `
+  -Location eastus `
+  -Name myAGPublicIPAddress `
+  -AllocationMethod Static `
+  -Sku Standard
+
+#Create IP Config and front-end port
+$vnet   = Get-AzVirtualNetwork -ResourceGroupName myResourceGroupAG -Name myVNet
+$subnet = Get-AzVirtualNetworkSubnetConfig -VirtualNetwork $vnet -Name myAGSubnet
+$pip    = Get-AzPublicIPAddress -ResourceGroupName myResourceGroupAG -Name myAGPublicIPAddress 
+$gipconfig = New-AzApplicationGatewayIPConfiguration `
+  -Name myAGIPConfig `
+  -Subnet $subnet
+$fipconfig = New-AzApplicationGatewayFrontendIPConfig `
+  -Name myAGFrontendIPConfig `
+  -PublicIPAddress $pip
+$frontendport = New-AzApplicationGatewayFrontendPort `
+  -Name myFrontendPort `
+  -Port 80
+
+#Create backend pool
+$backendPool = New-AzApplicationGatewayBackendAddressPool `
+  -Name myAGBackendPool
+$poolSettings = New-AzApplicationGatewayBackendHttpSetting `
+  -Name myPoolSettings `
+  -Port 80 `
+  -Protocol Http `
+  -CookieBasedAffinity Enabled `
+  -RequestTimeout 30
+
+#Create listener and add rule
+$defaultlistener = New-AzApplicationGatewayHttpListener `
+  -Name myAGListener `
+  -Protocol Http `
+  -FrontendIPConfiguration $fipconfig `
+  -FrontendPort $frontendport
+$frontendRule = New-AzApplicationGatewayRequestRoutingRule `
+  -Name rule1 `
+  -RuleType Basic `
+  -HttpListener $defaultlistener `
+  -BackendAddressPool $backendPool `
+  -BackendHttpSettings $poolSettings
+
+#Create application gateway
+$sku = New-AzApplicationGatewaySku `
+  -Name Standard_v2 `
+  -Tier Standard_v2 `
+  -Capacity 2
+New-AzApplicationGateway `
+  -Name myAppGateway `
+  -ResourceGroupName myResourceGroupAG `
+  -Location eastus `
+  -BackendAddressPools $backendPool `
+  -BackendHttpSettingsCollection $poolSettings `
+  -FrontendIpConfigurations $fipconfig `
+  -GatewayIpConfigurations $gipconfig `
+  -FrontendPorts $frontendport `
+  -HttpListeners $defaultlistener `
+  -RequestRoutingRules $frontendRule `
+  -Sku $sku
